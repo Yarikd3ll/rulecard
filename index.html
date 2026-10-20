@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <!-- CRITICAL: correct viewport for mobile, prevents zoom on input focus -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>RuleCard — Учу правила</title>
+  <meta name="description" content="Персональное приложение для изучения правил и словарных слов">
+
+  <!-- PWA / Android -->
+  <meta name="theme-color" content="#0d0d1a">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="manifest" href="manifest.json">
+
+  <!-- PWA / iOS (Safari) -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="RuleCard">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+
+  <!-- Prevent tap highlight on mobile -->
+  <style>
+    * { -webkit-tap-highlight-color: transparent; }
+    /* Show splash on iOS while loading */
+    body { background: #0d0d1a; }
+  </style>
+
+  <!-- Fonts — with font-display:swap for faster first paint -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <div class="loading-screen">
+      <div class="loading-logo">
+        <div class="logo-icon">📚</div>
+        <h1>RuleCard</h1>
+        <p>Загрузка...</p>
+      </div>
+    </div>
+  </div>
+  <script src="db.js"></script>
+  <script src="sm2.js"></script>
+  <script src="utils.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
