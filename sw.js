@@ -1,4 +1,4 @@
-const CACHE = 'rulecard-v3';
+const CACHE = 'rulecard-v4';
 
 // Local app files — cache normally
 const LOCAL_ASSETS = [

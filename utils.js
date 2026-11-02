@@ -5,10 +5,10 @@
 // ─── Card Strength ───────────────────────────────────────────
 function getStrengthLabel(card) {
   const r = card.repetitions ?? 0;
-  if (r === 0) return { label: '🆕 Новая',   cls: 'badge-new'      };
-  if (r <= 2)  return { label: '📖 Учу',     cls: 'badge-learning' };
-  if (r <= 5)  return { label: '✅ Знаю',    cls: 'badge-known'    };
-               return { label: '🌟 Отлично', cls: 'badge-mastered' };
+  if (r === 0) return { label: 'Новая',   cls: 'badge-new'      };
+  if (r <= 2)  return { label: 'Учу',     cls: 'badge-learning' };
+  if (r <= 5)  return { label: 'Знаю',    cls: 'badge-known'    };
+               return { label: 'Отлично', cls: 'badge-mastered' };
 }
 
 // ─── Due Check ───────────────────────────────────────────────
@@ -43,6 +43,13 @@ function fmtDate(isoStr) {
   });
 }
 
+// ─── Today as a human label ──────────────────────────────────
+function todayLabel() {
+  return new Date().toLocaleDateString('ru-RU', {
+    weekday: 'long', day: 'numeric', month: 'long'
+  });
+}
+
 // ─── Plural forms for Russian ────────────────────────────────
 function pluralDays(n) {
   if (n % 100 >= 11 && n % 100 <= 19) return 'дней';
@@ -58,6 +65,14 @@ function pluralCards(n) {
   if (r === 1) return 'карточка';
   if (r >= 2 && r <= 4) return 'карточки';
   return 'карточек';
+}
+
+function pluralSections(n) {
+  if (n % 100 >= 11 && n % 100 <= 19) return 'разделов';
+  const r = n % 10;
+  if (r === 1) return 'раздел';
+  if (r >= 2 && r <= 4) return 'раздела';
+  return 'разделов';
 }
 
 // ─── Escape HTML ─────────────────────────────────────────────

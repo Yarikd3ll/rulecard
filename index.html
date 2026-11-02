@@ -8,13 +8,14 @@
   <meta name="description" content="Персональное приложение для изучения правил и словарных слов">
 
   <!-- PWA / Android -->
-  <meta name="theme-color" content="#0d0d1a">
+  <meta name="theme-color" content="#f3ede2">
   <meta name="mobile-web-app-capable" content="yes">
   <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
 
   <!-- PWA / iOS (Safari) -->
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="RuleCard">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
 
@@ -22,22 +23,41 @@
   <style>
     * { -webkit-tap-highlight-color: transparent; }
     /* Show splash on iOS while loading */
-    body { background: #0d0d1a; }
+    body { background: #f3ede2; }
   </style>
 
   <!-- Fonts — with font-display:swap for faster first paint -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <div id="app">
-    <div class="loading-screen">
-      <div class="loading-logo">
-        <div class="logo-icon">📚</div>
-        <h1>RuleCard</h1>
-        <p>Загрузка...</p>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Навигация">
+        <div class="sidebar-brand">
+          <div class="sidebar-brand-name">RuleCard</div>
+          <div class="sidebar-brand-rule"></div>
+        </div>
+        <nav class="sidebar-nav">
+          <button type="button" class="sidebar-nav-item" data-nav="home">Главная</button>
+          <button type="button" class="sidebar-nav-item" data-nav="study">Учиться</button>
+          <button type="button" class="sidebar-nav-item" data-nav="manage">Управление</button>
+          <button type="button" class="sidebar-nav-item" data-nav="search">Поиск</button>
+          <button type="button" class="sidebar-nav-item" data-nav="stats">Статистика</button>
+          <button type="button" class="sidebar-nav-item" data-nav="settings">Настройки</button>
+        </nav>
+        <div class="sidebar-footer">Данные хранятся на этом устройстве</div>
+      </aside>
+
+      <div id="screenRoot">
+        <div class="loading-screen">
+          <div class="loading-logo">
+            <h1>RuleCard</h1>
+            <p>Загрузка...</p>
+          </div>
+        </div>
       </div>
     </div>
   </div>

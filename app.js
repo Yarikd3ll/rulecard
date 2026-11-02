@@ -36,6 +36,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     navigator.storage.persist();
   }
   await loadSubjects();
+  initSidebar();
   renderHome();
 });
 
@@ -90,10 +91,47 @@ function showConfirm(title, desc, onConfirm) {
 }
 
 // ─── Render Helpers ───────────────────────────────────────────
-function setApp(html) {
+function setApp(html, navKey = null) {
   stopSessionTimer();
   state.formDirty = false;
-  document.getElementById('app').innerHTML = html;
+  const root = document.getElementById('screenRoot') || document.getElementById('app');
+  root.innerHTML = html;
+  if (navKey) setActiveNav(navKey);
+}
+
+function setActiveNav(key) {
+  document.querySelectorAll('.sidebar-nav-item').forEach(btn => {
+    const active = btn.dataset.nav === key;
+    btn.classList.toggle('active', active);
+    if (active) btn.setAttribute('aria-current', 'page');
+    else btn.removeAttribute('aria-current');
+  });
+}
+
+function initSidebar() {
+  const routes = {
+    home:     renderHome,
+    study:    renderSubjectPicker,
+    manage:   renderSubjectList,
+    search:   renderSearch,
+    stats:    renderStats,
+    settings: renderSettings,
+  };
+
+  document.querySelectorAll('.sidebar-nav-item').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const go = routes[btn.dataset.nav];
+      if (!go) return;
+      if (state.formDirty) {
+        showConfirm('Выйти без сохранения?', 'Введённые данные будут потеряны.', () => {
+          state.formDirty = false;
+          go();
+        });
+      } else {
+        go();
+      }
+    });
+  });
 }
 
 function topbar(title, subtitle, backFn, extra = '') {
@@ -122,7 +160,7 @@ function startSessionTimer() {
     const el = document.getElementById('sessionTimer');
     if (!el) { stopSessionTimer(); return; }
     const secs = Math.floor((Date.now() - state.sessionStart) / 1000);
-    el.textContent = `⏱ ${fmtDuration(secs)}`;
+    el.textContent = fmtDuration(secs);
   }, 1000);
 }
 
@@ -149,14 +187,19 @@ async function renderHome() {
   const todayLog  = getTodayLog();
   const masteredCount = allCards.filter(c => (c.repetitions ?? 0) > 5).length;
   const masteredPct   = totalCards > 0 ? Math.round((masteredCount / totalCards) * 100) : 0;
+  const homeNote = dueCount > 0
+    ? `К повторению: ${dueCount} ${pluralCards(dueCount)}.`
+    : totalCards > 0
+      ? 'На сегодня всё повторено.'
+      : 'Пока пусто. Начни с предмета и первой карточки.';
 
   setApp(`
     <div class="screen" id="screenHome">
       <div class="home-hero">
-        <span class="home-logo">📚</span>
-        <h1 class="home-title">RuleCard</h1>
-        <p class="home-subtitle">Учи правила и повторяй слова</p>
-        ${streak > 0 ? `<div class="streak-badge">🔥 ${streak} ${pluralDays(streak)} подряд!</div>` : ''}
+        <div class="home-kicker">${todayLabel()}</div>
+        <h1 class="home-title">Сегодня</h1>
+        <p class="home-subtitle">${homeNote}</p>
+        ${streak > 0 ? `<div class="streak-badge">${streak} ${pluralDays(streak)} подряд</div>` : ''}
       </div>
 
       <div class="stats-row">
@@ -184,23 +227,21 @@ async function renderHome() {
           <div class="home-progress-fill" style="width:${masteredPct}%"></div>
         </div>
         <div class="home-progress-sub">
-          ${masteredCount} из ${totalCards} карточек освоено
+          ${masteredCount} из ${totalCards} ${pluralCards(totalCards)} освоено
           ${todayLog.studied > 0 ? ` · сегодня повторил ${todayLog.studied}` : ''}
         </div>
       </div>` : ''}
 
       <div class="home-actions">
         <button class="action-card primary" id="btnStudy">
-          <div class="action-icon">🎯</div>
           <div class="action-text">
             <div class="action-title">Учиться</div>
-            <div class="action-desc">${dueCount > 0 ? `${dueCount} карточек на повторение` : 'Выбрать раздел для изучения'}</div>
+            <div class="action-desc">${dueCount > 0 ? `${dueCount} ${pluralCards(dueCount)} на повторение` : 'Выбрать раздел для изучения'}</div>
           </div>
           <span class="action-arrow">›</span>
         </button>
 
         <button class="action-card accent" id="btnManage">
-          <div class="action-icon">✏️</div>
           <div class="action-text">
             <div class="action-title">Управление</div>
             <div class="action-desc">Добавить предметы, разделы, карточки</div>
@@ -211,19 +252,16 @@ async function renderHome() {
 
       <div class="home-quick-row">
         <button class="quick-btn" id="btnSearch">
-          <span class="quick-btn-icon">🔍</span>
           <span class="quick-btn-label">Поиск</span>
         </button>
         <button class="quick-btn" id="btnStats">
-          <span class="quick-btn-icon">📊</span>
           <span class="quick-btn-label">Статистика</span>
         </button>
         <button class="quick-btn" id="btnSettings">
-          <span class="quick-btn-icon">⚙️</span>
           <span class="quick-btn-label">Настройки</span>
         </button>
       </div>
-    </div>`);
+    </div>`, 'home');
 
   document.getElementById('btnStudy').onclick   = () => renderSubjectPicker();
   document.getElementById('btnManage').onclick  = () => renderSubjectList();
@@ -246,13 +284,13 @@ async function renderSubjectPicker() {
         ${topbar('Учиться', '', renderHome)}
         <div class="content content--center">
           <div class="empty-state">
-            <div class="empty-icon">📭</div>
+
             <div class="empty-title">Нет предметов</div>
             <div class="empty-desc">Сначала добавь предметы и карточки в «Управлении»</div>
           </div>
           <button class="btn btn-primary mt-16" id="btnGoManage">Управление</button>
         </div>
-      </div>`);
+      </div>`, 'study');
     afterRender(renderHome);
     document.getElementById('btnGoManage').onclick = () => renderSubjectList();
     return;
@@ -271,15 +309,15 @@ async function renderSubjectPicker() {
       <div class="content">
         ${items.map(s => `
           <div class="list-item" id="subjectStudy_${s.id}">
-            <div class="list-item-icon">${s.emoji || '📚'}</div>
+            <div class="list-item-icon">${s.emoji || '§'}</div>
             <div class="list-item-body">
               <div class="list-item-name">${esc(s.name)}</div>
-              <div class="list-item-meta">${s.cardCount} карточек${s.dueCount > 0 ? ` · <span style="color:var(--accent)">${s.dueCount} на сегодня</span>` : ''}</div>
+              <div class="list-item-meta">${s.cardCount} ${pluralCards(s.cardCount)}${s.dueCount > 0 ? ` · <span style="color:var(--accent)">${s.dueCount} на сегодня</span>` : ''}</div>
             </div>
             <span class="action-arrow">›</span>
           </div>`).join('')}
       </div>
-    </div>`);
+    </div>`, 'study');
   afterRender(renderHome);
   items.forEach(s => {
     document.getElementById(`subjectStudy_${s.id}`).onclick = () => renderModePicker(s);
@@ -303,14 +341,12 @@ async function renderModePicker(subject) {
         <p class="section-header">Выбери режим</p>
         <div class="mode-grid">
           <div class="mode-card" id="modeManual">
-            <div class="mode-icon">🗂️</div>
             <div class="mode-name">По разделам</div>
             <div class="mode-desc">Сам выбираю раздел</div>
           </div>
           <div class="mode-card" id="modeSmart">
-            <div class="mode-icon">🧠</div>
             <div class="mode-name">Умный режим</div>
-            <div class="mode-desc">${dueCount} карточек на сегодня</div>
+            <div class="mode-desc">${dueCount} ${pluralCards(dueCount)} на сегодня</div>
           </div>
         </div>
       </div>
@@ -319,7 +355,7 @@ async function renderModePicker(subject) {
 
   document.getElementById('modeManual').onclick = () => renderSectionPicker(subject);
   document.getElementById('modeSmart').onclick  = async () => {
-    if (dueCount === 0) { showToast('Нет карточек на сегодня 🎉'); return; }
+    if (dueCount === 0) { showToast('На сегодня всё повторено'); return; }
     const dueCards = subjectCards.filter(isDue).sort(() => Math.random() - 0.5);
     startStudy(dueCards, 'smart', subject);
   };
@@ -338,7 +374,7 @@ async function renderSectionPicker(subject) {
         ${topbar(subject.name, '', () => renderModePicker(subject))}
         <div class="content content--center">
           <div class="empty-state">
-            <div class="empty-icon">📭</div>
+
             <div class="empty-title">Нет разделов</div>
             <div class="empty-desc">Добавь разделы в «Управлении»</div>
           </div>
@@ -358,7 +394,7 @@ async function renderSectionPicker(subject) {
       ${topbar(subject.name, 'Выбери раздел', () => renderModePicker(subject))}
       <div class="content">
         <div class="shuffle-toggle-row">
-          <span class="shuffle-label">🔀 Перемешать карточки</span>
+          <span class="shuffle-label">Перемешать карточки</span>
           <label class="toggle-switch">
             <input type="checkbox" id="shuffleToggle" ${state.shuffleMode ? 'checked' : ''}>
             <span class="toggle-track"><span class="toggle-thumb"></span></span>
@@ -369,7 +405,7 @@ async function renderSectionPicker(subject) {
             <div class="section-pick-item" id="secPick_${sec.id}">
               <div class="section-pick-info">
                 <div class="section-pick-name">${esc(sec.name)}</div>
-                <div class="section-pick-count">${sec.cardCount} карточек</div>
+                <div class="section-pick-count">${sec.cardCount} ${pluralCards(sec.cardCount)}</div>
               </div>
               ${sec.dueCount > 0 ? `<span class="section-pick-due">${sec.dueCount} сегодня</span>` : ''}
               <span class="action-arrow" style="color:var(--text3)">›</span>
@@ -420,7 +456,7 @@ function renderStudyCard() {
         state.studySubject.name,
         sectionLabel,
         confirmLeaveStudy,
-        `<span class="session-timer-badge" id="sessionTimer">⏱ 0:00</span>`
+        `<span class="session-timer-badge" id="sessionTimer">0:00</span>`
       )}
       <div class="study-progress">
         <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
@@ -443,7 +479,7 @@ function renderStudyCard() {
       <div class="study-actions" id="studyActions">
         <div class="study-nav-row">
           ${idx > 0 ? `<button class="btn btn-secondary" id="btnPrev" style="flex:0 0 44px">←</button>` : '<span></span>'}
-          <button class="btn btn-primary flex1" id="btnShowAnswer">👁 Показать ответ</button>
+          <button class="btn btn-primary flex1" id="btnShowAnswer">Показать ответ</button>
           <button class="btn btn-secondary" id="btnSkip" style="flex:0 0 44px">→</button>
         </div>
       </div>
@@ -475,22 +511,22 @@ function showAnswer() {
   if (card.verse) {
     answerHtml += `
       <div class="card-divider"></div>
-      <div class="card-verse"><span class="card-verse-icon">🎵</span>${esc(card.verse)}</div>`;
+      <div class="card-verse">${esc(card.verse)}</div>`;
   }
   answerHtml += `</div>`;
   wrap.insertAdjacentHTML('beforeend', answerHtml);
 
   const hasVocab = card.vocabulary && card.vocabulary.filter(v => v.word).length > 0;
   const vocabBtn = hasVocab
-    ? `<button class="btn btn-accent" id="btnShowVocab">📖 Показать слова</button>`
+    ? `<button class="btn btn-accent" id="btnShowVocab">Показать слова</button>`
     : '';
 
   const ratingHtml = state.studyMode === 'smart'
     ? `<div class="rating-row">
-        <button class="rating-btn r-forgot" data-r="0"><span class="r-emoji">😰</span>Забыл</button>
-        <button class="rating-btn r-hard"   data-r="1"><span class="r-emoji">😕</span>Трудно</button>
-        <button class="rating-btn r-good"   data-r="2"><span class="r-emoji">😊</span>Хорошо</button>
-        <button class="rating-btn r-easy"   data-r="3"><span class="r-emoji">🌟</span>Легко</button>
+        <button class="rating-btn r-forgot" data-r="0">Забыл</button>
+        <button class="rating-btn r-hard"   data-r="1">Трудно</button>
+        <button class="rating-btn r-good"   data-r="2">Хорошо</button>
+        <button class="rating-btn r-easy"   data-r="3">Легко</button>
        </div>`
     : `<div class="study-nav-row">
          ${state.studyIndex > 0 ? `<button class="btn btn-secondary" id="btnPrev2" style="flex:0 0 44px">←</button>` : '<span></span>'}
@@ -523,7 +559,7 @@ function showVocab(card) {
 
   wrap.insertAdjacentHTML('beforeend', `
     <div class="study-card vocab-card" id="vocabCard">
-      <div class="card-label">📖 Слова для примера</div>
+      <div class="card-label">Слова для примера</div>
       <div class="vocab-list">
         ${vocabItems.map(v => `
           <div class="vocab-item">
@@ -572,16 +608,16 @@ function renderStudyDone() {
     <div class="screen">
       ${topbar('Готово!', '', () => renderModePicker(state.studySubject))}
       <div class="done-wrap">
-        <div class="done-icon">🎉</div>
+        <div class="done-icon">✓</div>
         <div class="done-title">Сессия завершена!</div>
         <div class="done-subtitle">Ты прошёл ${total} ${pluralCards(total)}</div>
-        ${secs > 0 ? `<div class="done-time">⏱ Время: ${fmtDuration(secs)}</div>` : ''}
+        ${secs > 0 ? `<div class="done-time">Время: ${fmtDuration(secs)}</div>` : ''}
         ${state.studyMode === 'smart' ? `
           <div class="result-grid">
-            <div class="result-item"><div class="result-num red">${r.forgot}</div><div class="result-lbl">😰 Забыл</div></div>
-            <div class="result-item"><div class="result-num yellow">${r.hard}</div><div class="result-lbl">😕 Трудно</div></div>
-            <div class="result-item"><div class="result-num green">${r.good}</div><div class="result-lbl">😊 Хорошо</div></div>
-            <div class="result-item"><div class="result-num purple">${r.easy}</div><div class="result-lbl">🌟 Легко</div></div>
+            <div class="result-item"><div class="result-num red">${r.forgot}</div><div class="result-lbl">Забыл</div></div>
+            <div class="result-item"><div class="result-num yellow">${r.hard}</div><div class="result-lbl">Трудно</div></div>
+            <div class="result-item"><div class="result-num green">${r.good}</div><div class="result-lbl">Хорошо</div></div>
+            <div class="result-item"><div class="result-num purple">${r.easy}</div><div class="result-lbl">Легко</div></div>
           </div>` : ''}
         <button class="btn btn-primary mt-16" id="btnStudyAgain">Ещё раз</button>
         <button class="btn btn-secondary mt-8" id="btnGoHome">На главную</button>
@@ -608,7 +644,7 @@ async function renderSubjectList() {
       <div class="content">
         ${state.subjects.length === 0 ? `
           <div class="empty-state">
-            <div class="empty-icon">📭</div>
+
             <div class="empty-title">Нет предметов</div>
             <div class="empty-desc">Нажми + чтобы добавить первый предмет</div>
           </div>` :
@@ -616,21 +652,21 @@ async function renderSubjectList() {
             const secCount = sections.filter(x => x.subjectId === s.id).length;
             return `
               <div class="list-item" id="subjectRow_${s.id}">
-                <div class="list-item-icon">${s.emoji || '📚'}</div>
+                <div class="list-item-icon">${s.emoji || '§'}</div>
                 <div class="list-item-body">
                   <div class="list-item-name">${esc(s.name)}</div>
-                  <div class="list-item-meta">${secCount} разделов</div>
+                  <div class="list-item-meta">${secCount} ${pluralSections(secCount)}</div>
                 </div>
                 <div class="list-item-actions">
-                  <button class="btn-sm" id="editSubject_${s.id}" title="Редактировать">✏️</button>
-                  <button class="btn-sm danger" id="delSubject_${s.id}" title="Удалить">🗑</button>
+                  <button class="btn-sm" id="editSubject_${s.id}" title="Редактировать" aria-label="Редактировать">✎</button>
+                  <button class="btn-sm danger" id="delSubject_${s.id}" title="Удалить" aria-label="Удалить">×</button>
                 </div>
               </div>`;
           }).join('')
         }
       </div>
       <button class="fab" id="fabAddSubject" title="Добавить предмет">+</button>
-    </div>`);
+    </div>`, 'manage');
 
   afterRender(renderHome);
   document.getElementById('fabAddSubject').onclick = () => renderEditSubject(null);
@@ -683,7 +719,7 @@ function renderEditSubject(subject) {
             </div>
           </div>
           <button class="btn btn-primary mt-16" id="btnSaveSubject">
-            ${isEdit ? '💾 Сохранить' : '+ Создать'}
+            ${isEdit ? 'Сохранить' : '+ Создать'}
           </button>
         </div>
       </div>
@@ -727,7 +763,6 @@ async function renderSectionList(subject) {
       <div class="content">
         ${sections.length === 0 ? `
           <div class="empty-state">
-            <div class="empty-icon">📂</div>
             <div class="empty-title">Нет разделов</div>
             <div class="empty-desc">Нажми + чтобы добавить раздел</div>
           </div>` :
@@ -736,14 +771,13 @@ async function renderSectionList(subject) {
             const due = cards.filter(c => c.sectionId === sec.id && isDue(c)).length;
             return `
               <div class="list-item" id="secRow_${sec.id}">
-                <div class="list-item-icon" style="background:rgba(77,184,136,0.12);font-size:1.2rem">📑</div>
                 <div class="list-item-body">
                   <div class="list-item-name">${esc(sec.name)}</div>
-                  <div class="list-item-meta">${cnt} карточек${due > 0 ? ` · <span style="color:var(--accent)">${due} сегодня</span>` : ''}</div>
+                  <div class="list-item-meta">${cnt} ${pluralCards(cnt)}${due > 0 ? ` · <span style="color:var(--accent)">${due} сегодня</span>` : ''}</div>
                 </div>
                 <div class="list-item-actions">
-                  <button class="btn-sm" id="editSec_${sec.id}">✏️</button>
-                  <button class="btn-sm danger" id="delSec_${sec.id}">🗑</button>
+                  <button class="btn-sm" id="editSec_${sec.id}" title="Редактировать" aria-label="Редактировать">✎</button>
+                  <button class="btn-sm danger" id="delSec_${sec.id}" title="Удалить" aria-label="Удалить">×</button>
                 </div>
               </div>`;
           }).join('')}
@@ -788,7 +822,7 @@ function renderEditSection(section, subject) {
               value="${esc(section?.name || '')}" autocomplete="off">
           </div>
           <button class="btn btn-primary mt-16" id="btnSaveSec">
-            ${isEdit ? '💾 Сохранить' : '+ Создать'}
+            ${isEdit ? 'Сохранить' : '+ Создать'}
           </button>
         </div>
       </div>
@@ -821,29 +855,27 @@ async function renderCardList(section, subject) {
       <div class="content">
         ${cards.length === 0 ? `
           <div class="empty-state">
-            <div class="empty-icon">🃏</div>
             <div class="empty-title">Нет карточек</div>
             <div class="empty-desc">Нажми + чтобы добавить карточку</div>
           </div>` :
           cards.map(c => {
             const strength = getStrengthLabel(c);
-            const noteCount = getCardNote(c.id) ? '📝' : '';
+            const hasNote = !!getCardNote(c.id);
             return `
               <div class="list-item" id="cardRow_${c.id}">
-                <div class="list-item-icon" style="background:rgba(124,92,191,0.12);font-size:1rem">🃏</div>
                 <div class="list-item-body">
                   <div class="list-item-name">${esc(c.question)}</div>
                   <div class="list-item-meta row gap-8">
                     <span class="badge ${strength.cls}">${strength.label}</span>
-                    ${(c.vocabulary || []).filter(v => v.word).length > 0 ? '<span style="font-size:0.7rem;color:var(--green)">📖 слова</span>' : ''}
-                    ${c.verse ? '<span style="font-size:0.7rem;color:var(--accent-l)">🎵 стих</span>' : ''}
-                    ${noteCount ? `<span style="font-size:0.7rem;color:var(--text3)">${noteCount} заметка</span>` : ''}
-                    ${c.nextReview ? `<span style="font-size:0.7rem;color:var(--text3)">📅 ${fmtDate(c.nextReview)}</span>` : ''}
+                    ${(c.vocabulary || []).filter(v => v.word).length > 0 ? '<span style="font-size:0.7rem;color:var(--green)">слова</span>' : ''}
+                    ${c.verse ? '<span style="font-size:0.7rem;color:var(--accent-l)">стих</span>' : ''}
+                    ${hasNote ? '<span style="font-size:0.7rem;color:var(--text3)">заметка</span>' : ''}
+                    ${c.nextReview ? `<span style="font-size:0.7rem;color:var(--text3)">повтор ${fmtDate(c.nextReview)}</span>` : ''}
                   </div>
                 </div>
                 <div class="list-item-actions">
-                  <button class="btn-sm" id="editCard_${c.id}">✏️</button>
-                  <button class="btn-sm danger" id="delCard_${c.id}">🗑</button>
+                  <button class="btn-sm" id="editCard_${c.id}" title="Редактировать" aria-label="Редактировать">✎</button>
+                  <button class="btn-sm danger" id="delCard_${c.id}" title="Удалить" aria-label="Удалить">×</button>
                 </div>
               </div>`;
           }).join('')}
@@ -917,13 +949,13 @@ function renderEditCard(card, section, subject) {
           </div>
 
           <div class="form-group">
-            <label class="form-label">🎵 Стих / Рифма для запоминания</label>
+            <label class="form-label">Стих / рифма для запоминания</label>
             <textarea class="form-textarea" id="cardVerse"
               placeholder="Необязательно. Рифма или мнемоника для лучшего запоминания.">${esc(draft?.verse ?? card?.verse ?? '')}</textarea>
           </div>
 
           <div class="form-group">
-            <label class="form-label">📖 Словарные слова</label>
+            <label class="form-label">Словарные слова</label>
             <span class="form-hint mb-8">Слова-примеры к правилу (появятся отдельной кнопкой)</span>
             <div class="vocab-editor" id="vocabEditor">
               ${renderVocabRows(state.vocabRows)}
@@ -932,10 +964,10 @@ function renderEditCard(card, section, subject) {
           </div>
 
           <button class="btn btn-primary mt-16" id="btnSaveCard">
-            ${isEdit ? '💾 Сохранить' : '+ Добавить карточку'}
+            ${isEdit ? 'Сохранить' : '+ Добавить карточку'}
           </button>
-          ${isEdit ? `<button class="btn btn-danger mt-8" id="btnResetCard">♻️ Сбросить прогресс</button>` : ''}
-          ${draftKey ? `<div class="draft-indicator hidden" id="draftIndicator">💾 Черновик сохранён</div>` : ''}
+          ${isEdit ? `<button class="btn btn-danger mt-8" id="btnResetCard">Сбросить прогресс</button>` : ''}
+          ${draftKey ? `<div class="draft-indicator hidden" id="draftIndicator">Черновик сохранён</div>` : ''}
         </div>
       </div>
     </div>`);
@@ -1149,38 +1181,38 @@ async function renderStats() {
         <div class="stats-hero-row">
           <div class="stats-hero-card">
             <div class="stats-hero-num">${streak}</div>
-            <div class="stats-hero-label">🔥 Дней подряд</div>
+            <div class="stats-hero-label">Дней подряд</div>
           </div>
           <div class="stats-hero-card">
             <div class="stats-hero-num" style="color:${dueToday > 0 ? 'var(--accent)' : 'var(--green)'}">${dueToday}</div>
-            <div class="stats-hero-label">📅 На сегодня</div>
+            <div class="stats-hero-label">На сегодня</div>
           </div>
           <div class="stats-hero-card">
             <div class="stats-hero-num" style="color:var(--green)">${todayLog.studied}</div>
-            <div class="stats-hero-label">✅ Повторено сегодня</div>
+            <div class="stats-hero-label">Повторено сегодня</div>
           </div>
         </div>
 
         <p class="section-header">Прогресс по уровню</p>
         <div class="stats-card">
-          ${mkBar('🆕 Новые',    newCards.length,      total, 'var(--text3)')}
-          ${mkBar('📖 Учу',      learningCards.length, total, 'var(--yellow)')}
-          ${mkBar('✅ Знаю',     knownCards.length,    total, 'var(--green)')}
-          ${mkBar('🌟 Отлично',  masteredCards.length, total, 'var(--primary-l)')}
+          ${mkBar('Новые',    newCards.length,      total, 'var(--text3)')}
+          ${mkBar('Учу',      learningCards.length, total, 'var(--yellow)')}
+          ${mkBar('Знаю',     knownCards.length,    total, 'var(--green)')}
+          ${mkBar('Отлично',  masteredCards.length, total, 'var(--primary-l)')}
         </div>
 
         <p class="section-header">По предметам</p>
         ${subjectStats.length === 0
-          ? '<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-title">Нет данных</div></div>'
+          ? '<div class="empty-state"><div class="empty-title">Нет данных</div></div>'
           : subjectStats.map(s => {
             const pct = s.cardCount > 0 ? Math.round((s.masteredCount / s.cardCount) * 100) : 0;
             return `
               <div class="list-item" style="flex-direction:column;align-items:stretch;gap:8px;margin-bottom:10px;cursor:default">
                 <div style="display:flex;align-items:center;gap:10px">
-                  <div class="list-item-icon">${s.emoji || '📚'}</div>
+                  <div class="list-item-icon">${s.emoji || '§'}</div>
                   <div class="list-item-body">
                     <div class="list-item-name">${esc(s.name)}</div>
-                    <div class="list-item-meta">${s.cardCount} карточек
+                    <div class="list-item-meta">${s.cardCount} ${pluralCards(s.cardCount)}
                       ${s.dueCount > 0
                         ? ` · <span style="color:var(--accent)">${s.dueCount} на сегодня</span>`
                         : s.cardCount > 0 ? ' · <span style="color:var(--green)">всё изучено ✓</span>' : ''}
@@ -1201,7 +1233,7 @@ async function renderStats() {
           <div class="stat-card"><div class="stat-num">${cards.length}</div><div class="stat-label">Карточек</div></div>
         </div>
       </div>
-    </div>`);
+    </div>`, 'stats');
   afterRender(renderHome);
 }
 
@@ -1233,20 +1265,19 @@ async function renderSearch() {
       ${topbar('Поиск', 'Все карточки', renderHome)}
       <div class="content">
         <div class="search-bar-wrap">
-          <span class="search-icon">🔍</span>
           <input class="search-input" id="searchInput" type="text"
             placeholder="Вопрос, правило, слово..." autocomplete="off">
           <button class="search-clear hidden" id="searchClear">✕</button>
         </div>
         <div id="searchResults">
           <div class="empty-state">
-            <div class="empty-icon">🔍</div>
+
             <div class="empty-title">Введи запрос</div>
             <div class="empty-desc">Поиск по вопросам, правилам и словам</div>
           </div>
         </div>
       </div>
-    </div>`);
+    </div>`, 'search');
 
   afterRender(renderHome);
   const input    = document.getElementById('searchInput');
@@ -1259,7 +1290,7 @@ async function renderSearch() {
     clearBtn.classList.toggle('hidden', !q);
     const container = document.getElementById('searchResults');
     if (!q) {
-      container.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-title">Введи запрос</div></div>`;
+      container.innerHTML = `<div class="empty-state"><div class="empty-title">Введи запрос</div></div>`;
       return;
     }
     const results = cards.filter(c =>
@@ -1269,11 +1300,11 @@ async function renderSearch() {
       (c.vocabulary || []).some(v => v.word.toLowerCase().includes(qLo))
     );
     if (results.length === 0) {
-      container.innerHTML = `<div class="empty-state"><div class="empty-icon">🤷</div><div class="empty-title">Ничего не найдено</div></div>`;
+      container.innerHTML = `<div class="empty-state"><div class="empty-title">Ничего не найдено</div></div>`;
       return;
     }
     container.innerHTML = `
-      <p class="section-header">${results.length} результатов</p>
+      <p class="section-header">Найдено: ${results.length}</p>
       ${results.map(c => {
         const sec = secMap[c.sectionId];
         const sub = sec ? subMap[sec.subjectId] : null;
@@ -1286,8 +1317,8 @@ async function renderSearch() {
             <div class="search-result-rule">${highlight(rulePreview, q)}</div>
             <div class="search-result-tags">
               <span class="badge ${s.cls}">${s.label}</span>
-              ${c.verse ? '<span style="font-size:0.7rem;color:var(--accent-l)">🎵 стих</span>' : ''}
-              ${(c.vocabulary||[]).filter(v=>v.word).length > 0 ? '<span style="font-size:0.7rem;color:var(--green)">📖 слова</span>' : ''}
+              ${c.verse ? '<span style="font-size:0.7rem;color:var(--accent-l)">стих</span>' : ''}
+              ${(c.vocabulary||[]).filter(v=>v.word).length > 0 ? '<span style="font-size:0.7rem;color:var(--green)">слова</span>' : ''}
             </div>
           </div>`;
       }).join('')}`;
@@ -1308,10 +1339,9 @@ function renderSettings() {
       ${topbar('Настройки', '', renderHome)}
       <div class="content">
 
-        <p class="section-header">💾 Данные и резервная копия</p>
+        <p class="section-header">Данные и резервная копия</p>
         <div class="settings-list">
           <div class="settings-item" id="btnExport">
-            <div class="settings-item-icon">📤</div>
             <div class="settings-item-body">
               <div class="settings-item-name">Экспорт данных</div>
               <div class="settings-item-desc">Скачать все данные как JSON-файл (резервная копия)</div>
@@ -1319,7 +1349,6 @@ function renderSettings() {
             <span class="settings-arrow">›</span>
           </div>
           <div class="settings-item" id="btnImport">
-            <div class="settings-item-icon">📥</div>
             <div class="settings-item-body">
               <div class="settings-item-name">Импорт данных</div>
               <div class="settings-item-desc">Восстановить или объединить из JSON-файла</div>
@@ -1329,39 +1358,34 @@ function renderSettings() {
         </div>
 
         <div class="settings-info-box">
-          <div class="settings-info-icon">🔒</div>
           <div class="settings-info-text">Все данные хранятся локально на твоём устройстве в IndexedDB и не удаляются при закрытии приложения. Для надёжности делай экспорт время от времени.</div>
         </div>
 
-        <p class="section-header">📊 Текущая сессия</p>
+        <p class="section-header">Серия и прогресс</p>
         <div class="settings-list">
           <div class="settings-item" style="cursor:default">
-            <div class="settings-item-icon">🔥</div>
             <div class="settings-item-body">
               <div class="settings-item-name">${streak} ${pluralDays(streak)} подряд</div>
               <div class="settings-item-desc">Серия ежедневных занятий</div>
             </div>
           </div>
           <div class="settings-item" style="cursor:default">
-            <div class="settings-item-icon">✅</div>
             <div class="settings-item-body">
-              <div class="settings-item-name">${todayLog.studied} карточек сегодня</div>
+              <div class="settings-item-name">${todayLog.studied} ${pluralCards(todayLog.studied)} сегодня</div>
               <div class="settings-item-desc">Повторено за сегодняшний день</div>
             </div>
           </div>
         </div>
 
-        <p class="section-header">⚠️ Сброс</p>
+        <p class="section-header">Сброс</p>
         <div class="settings-list">
           <div class="settings-item danger" id="btnResetStreak">
-            <div class="settings-item-icon">🔥</div>
             <div class="settings-item-body">
               <div class="settings-item-name">Сбросить счётчик дней</div>
-              <div class="settings-item-desc">Обнулить streak</div>
+              <div class="settings-item-desc">Обнулить счётчик дней подряд</div>
             </div>
           </div>
           <div class="settings-item danger" id="btnClearAll">
-            <div class="settings-item-icon">🗑</div>
             <div class="settings-item-body">
               <div class="settings-item-name">Удалить ВСЕ данные</div>
               <div class="settings-item-desc">Безвозвратно — сначала сделай экспорт!</div>
@@ -1369,10 +1393,9 @@ function renderSettings() {
           </div>
         </div>
 
-        <p class="section-header">ℹ️ О приложении</p>
+        <p class="section-header">О приложении</p>
         <div class="settings-list">
           <div class="settings-item" style="cursor:default">
-            <div class="settings-item-icon">📚</div>
             <div class="settings-item-body">
               <div class="settings-item-name">RuleCard v2.0</div>
               <div class="settings-item-desc">PWA · Работает оффлайн · Данные только у тебя</div>
@@ -1382,7 +1405,7 @@ function renderSettings() {
 
         <input type="file" id="importFileInput" accept=".json" style="display:none">
       </div>
-    </div>`);
+    </div>`, 'settings');
 
   afterRender(renderHome);
   document.getElementById('btnExport').onclick  = exportData;
@@ -1390,10 +1413,10 @@ function renderSettings() {
   document.getElementById('importFileInput').onchange = importData;
 
   document.getElementById('btnResetStreak').onclick = () =>
-    showConfirm('Сбросить streak?', 'Счётчик дней подряд будет обнулён.', () => {
+    showConfirm('Сбросить серию?', 'Счётчик дней подряд будет обнулён.', () => {
       localStorage.removeItem('rc_streak');
       localStorage.removeItem('rc_lastStudy');
-      showToast('Streak сброшен');
+      showToast('Серия сброшена');
       renderSettings();
     });
 
@@ -1430,7 +1453,7 @@ async function exportData() {
   });
   a.click();
   URL.revokeObjectURL(url);
-  showToast(`Экспортировано ${cards.length} карточек ✅`);
+  showToast(`Экспортировано ${cards.length} ${pluralCards(cards.length)}`);
 }
 
 async function importData(event) {
@@ -1443,7 +1466,7 @@ async function importData(event) {
     }
     showConfirm(
       'Импортировать данные?',
-      `Будет добавлено: ${data.subjects.length} предм., ${data.sections.length} разд., ${data.cards.length} карточек. Существующие данные останутся.`,
+      `Будет добавлено: ${data.subjects.length} предм., ${data.sections.length} разд., ${data.cards.length} ${pluralCards(data.cards.length)}. Существующие данные останутся.`,
       async () => {
         const subjectIdMap = {};
         for (const s of data.subjects) {
@@ -1461,7 +1484,7 @@ async function importData(event) {
           rest.sectionId = sectionIdMap[rest.sectionId] ?? rest.sectionId;
           await db.add('cards', rest);
         }
-        showToast(`Импортировано ${data.cards.length} карточек! ✅`);
+        showToast(`Импортировано ${data.cards.length} ${pluralCards(data.cards.length)}!`);
         await loadSubjects();
         renderHome();
       }
