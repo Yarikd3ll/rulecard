@@ -1,4 +1,4 @@
-const CACHE = 'rulecard-v4';
+const CACHE = 'rulecard-v5';
 
 // Local app files — cache normally
 const LOCAL_ASSETS = [
@@ -10,8 +10,8 @@ const LOCAL_ASSETS = [
   './utils.js',
   './app.js',
   './manifest.json',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
+  './icons/icon-192-v2.png',
+  './icons/icon-512-v2.png',
 ];
 
 // ─── Install: pre-cache local files ──────────────────────────

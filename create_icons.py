@@ -17,6 +17,15 @@ INK = '#211e19'
 CREAM = '#f3ede2'
 ACCENT_LIGHT = '#e08a6a'
 
+# Bump when the artwork changes so phones and browsers drop the cached icon.
+ICON_VERSION = 'v2'
+
+# The motif is centred and scaled up, but stays inside the maskable safe zone
+# (a circle of 80% of the icon width).
+MOTIF_SCALE = 1.18
+MOTIF_CX = -0.0245
+MOTIF_CY = 0.1085
+
 
 def lerp(a, b, t):
     return a + (b - a) * t
@@ -51,8 +60,8 @@ def rounded_rect_sdf(px, py, cx, cy, half_w, half_h, radius, angle=0.0):
 
 def make_pixel(x, y, size):
     """Return (r, g, b) for one pixel. Flat paper, ink cards, one accent."""
-    px = (x / size - 0.5) * 2.0
-    py = (y / size - 0.5) * 2.0
+    px = ((x / size - 0.5) * 2.0 - MOTIF_CX) / MOTIF_SCALE
+    py = ((y / size - 0.5) * 2.0 - MOTIF_CY) / MOTIF_SCALE
 
     r, g, b = hex_to_rgb(PAPER)
 
@@ -116,7 +125,7 @@ def write_png(filename, size):
 
 if __name__ == '__main__':
     base = os.path.dirname(os.path.abspath(__file__))
-    write_png(os.path.join(base, 'icons', 'icon-192.png'), 192)
-    write_png(os.path.join(base, 'icons', 'icon-512.png'), 512)
+    write_png(os.path.join(base, 'icons', 'icon-192-' + ICON_VERSION + '.png'), 192)
+    write_png(os.path.join(base, 'icons', 'icon-512-' + ICON_VERSION + '.png'), 512)
     print('')
     print('Icons created! Re-upload the icons/ folder to GitHub.')
